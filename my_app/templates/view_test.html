@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV Editor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='handsontable.full.min.css') }}">
+</head>
+<body>
+    <h1>CSV Editor</h1>
+    <button id="save">Save Changes</button>
+    <button onclick="window.location.href='/';">Back to Upload</button>
+    <div id="example"></div>
+
+    <script src="{{ url_for('static', filename='handsontable.full.min.js') }}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var data;
+            try {
+                data = JSON.parse('{{ csv_data | safe }}');
+            } catch (e) {
+                console.error('Error parsing JSON:', e);
+                alert('Failed to load data: Invalid JSON format');
+                return; // Stop further execution if data is not valid
+            }
+            
+            var container = document.getElementById('example');
+            var hot = new Handsontable(container, {
+                data: data,
+                rowHeaders: true,
+                colHeaders: Object.keys(data[0]),
+                columns: Object.keys(data[0]).map(function(column) {
+                    if (column === 'Label') {
+                        return {
+                            type: 'dropdown',
+                            source: ['Good', 'Bad', 'Okay'],
+                            data: column // Bind the data for each row to allow existing values to be shown
+                        };
+                    }
+                    return {data: column}; // Bind data to other columns normally
+                }),
+                filters: true,
+                dropdownMenu: true,
+                licenseKey: 'non-commercial-and-evaluation',
+                contextMenu: true,
+                manualColumnResize: true,
+                manualRowResize: true
+            });
+
+            document.getElementById('save').addEventListener('click', function() {
+                var csv = hot.getData();
+                // Now send the csv data back to the server to save it
+                fetch('/save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({data: csv})
+                }).then(response => response.json())
+                .then(data => {
+                    alert('Save successful!');
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                    alert('Error saving file!');
+                });
+            });
+        });
+    </script>
+</body>
+</html>
